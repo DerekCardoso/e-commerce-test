@@ -172,58 +172,111 @@ export default function ProductPage() {
   }, [])
 
   // Função para formatar CEP
-  const formatCep = (value: string) => {
-    return value
-      .replace(/\D/g, "")
-      .replace(/(\d{5})(\d)/, "$1-$2")
-      .substring(0, 9)
+  const formatCep = (value: string): string => {
+    // Remove todos os caracteres não numéricos
+    const numericValue = value.replace(/\D/g, "")
+
+    // Limita a 8 dígitos
+    const truncatedValue = numericValue.slice(0, 8)
+
+    // Adiciona o hífen após o 5º dígito se houver mais de 5 dígitos
+    if (truncatedValue.length > 5) {
+      return `${truncatedValue.slice(0, 5)}-${truncatedValue.slice(5)}`
+    }
+
+    return truncatedValue
   }
 
-  // Função para consultar CEP
-  const fetchAddressByCep = async () => {
-    if (cep.length < 8) {
-      setCepError("CEP inválido")
-      return
-    }
+  // Função para validar CEP
+  const isValidCep = (cep: string): boolean => {
+    // Remove todos os caracteres não numéricos
+    const numericCep = cep.replace(/\D/g, "")
+    // Verifica se tem exatamente 8 dígitos
+    return numericCep.length === 8
+  }
 
-    const cleanCep = cep.replace(/\D/g, "")
-
-    if (cleanCep.length !== 8) {
-      setCepError("CEP deve conter 8 dígitos")
-      return
-    }
-
-    setIsLoadingCep(true)
+  // Função para consultar CEP na API ViaCEP
+  const fetchAddressByCep = async (cepToFetch: string = cep) => {
+    // Limpa mensagens de erro anteriores
     setCepError("")
 
+    // Valida o CEP antes de fazer a consulta
+    if (!isValidCep(cepToFetch)) {
+      setCepError("CEP inválido. Digite os 8 dígitos do CEP.")
+      setAddress(null)
+      return
+    }
+
+    // Inicia o carregamento
+    setIsLoadingCep(true)
+
     try {
+      // Remove caracteres não numéricos para a consulta
+      const cleanCep = cepToFetch.replace(/\D/g, "")
+
+      // Faz a requisição para a API
       const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+
+      if (!response.ok) {
+        throw new Error(`Erro na requisição: ${response.status}`)
+      }
+
       const data = await response.json()
 
+      // Verifica se a API retornou erro
       if (data.erro) {
         setCepError("CEP não encontrado")
         setAddress(null)
-      } else {
-        setAddress(data)
+        return
       }
+
+      // Atualiza o endereço com os dados retornados
+      setAddress(data)
+      setCepError("")
     } catch (error) {
-      setCepError("Erro ao consultar CEP")
-      console.error("Erro na consulta de CEP:", error)
+      console.error("Erro ao consultar CEP:", error)
+      setCepError("Erro ao consultar o CEP. Tente novamente.")
+      setAddress(null)
     } finally {
+      // Finaliza o carregamento
       setIsLoadingCep(false)
     }
   }
 
   // Função para lidar com mudança de CEP
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formattedCep = formatCep(e.target.value)
+    // Obtém o valor atual do input
+    const inputValue = e.target.value
+
+    // Formata o CEP
+    const formattedCep = formatCep(inputValue)
+
+    // Atualiza o estado do CEP
     setCep(formattedCep)
 
-    if (formattedCep.length === 9) {
-      fetchAddressByCep()
-    } else {
+    // Limpa mensagens de erro enquanto o usuário está digitando
+    if (cepError && formattedCep.length < 9) {
+      setCepError("")
+    }
+
+    // Se o CEP estiver completo (com ou sem hífen), consulta automaticamente
+    if (isValidCep(formattedCep)) {
+      // Pequeno timeout para garantir que o estado foi atualizado
+      setTimeout(() => {
+        fetchAddressByCep(formattedCep)
+      }, 100)
+    } else if (formattedCep.length === 9) {
+      // Se tem 9 caracteres (com hífen) mas não é válido
+      setCepError("CEP inválido. Digite os 8 dígitos do CEP.")
+    } else if (formattedCep.length > 0) {
+      // Se está digitando, limpa o endereço
       setAddress(null)
     }
+  }
+
+  // Função para lidar com o clique no botão de busca
+  const handleSearchClick = () => {
+    fetchAddressByCep()
   }
 
   // Função para selecionar cor
@@ -327,10 +380,23 @@ export default function ProductPage() {
 
             <div className="flex max-w-md gap-2">
               <div className="w-full">
-                <Input type="text" placeholder="Digite seu CEP" value={cep} onChange={handleCepChange} maxLength={9} />
-                {cepError && <p className="mt-1 text-sm text-red-500">{cepError}</p>}
+                <Input
+                  type="text"
+                  placeholder="Digite seu CEP"
+                  value={cep}
+                  onChange={handleCepChange}
+                  maxLength={9}
+                  aria-label="CEP"
+                  aria-describedby="cep-error"
+                  className={cepError ? "border-red-500" : ""}
+                />
+                {cepError && (
+                  <p id="cep-error" className="mt-1 text-sm text-red-500">
+                    {cepError}
+                  </p>
+                )}
               </div>
-              <Button onClick={fetchAddressByCep} disabled={isLoadingCep || cep.length < 8} className="shrink-0">
+              <Button onClick={handleSearchClick} disabled={isLoadingCep || !isValidCep(cep)} className="shrink-0">
                 {isLoadingCep ? "Buscando..." : "Buscar"}
               </Button>
             </div>
