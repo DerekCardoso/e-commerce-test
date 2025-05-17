@@ -1,30 +1,65 @@
-# React e-commerce page
+# E-commerce React
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Projeto de e-commerce desenvolvido com React, Next.js e TypeScript.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/derekcardosos-projects/v0-react-e-commerce-page)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/Hzio58lqKSN)
+## 🚀 Tecnologias
 
-## Overview
+- React
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Shadcn/ui
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## 📋 Pré-requisitos
 
-## Deployment
+- Node.js (versão 18 ou superior)
+- npm ou yarn
 
-Your project is live at:
+## 🔧 Instalação
 
-**[https://vercel.com/derekcardosos-projects/v0-react-e-commerce-page](https://vercel.com/derekcardosos-projects/v0-react-e-commerce-page)**
+1. Clone o repositório:
+```bash
+git clone https://github.com/DerekCardoso/e-commerce-test.git
+cd e-commerce-test
+```
 
-## Build your app
+2. Instale as dependências:
+```bash
+npm install
+# ou
+yarn install
+```
 
-Continue building your app on:
+3. Execute o projeto:
+```bash
+npm run dev
+# ou
+yarn dev
+```
 
-**[https://v0.dev/chat/projects/Hzio58lqKSN](https://v0.dev/chat/projects/Hzio58lqKSN)**
+4. Acesse o projeto em `http://localhost:3000`
 
-## How It Works
+## 🛠️ Funcionalidades
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+- Visualização de produtos
+- Seleção de cores e tamanhos
+- Cálculo de frete por CEP
+- Carrinho de compras
+- Interface responsiva
+
+## 📝 Estrutura do Projeto
+
+```
+├── components/     # Componentes React
+├── public/        # Arquivos estáticos
+├── styles/        # Estilos globais
+└── pages/         # Páginas da aplicação
+```
+
+## 🤝 Contribuindo
+
+1. Faça um Fork do projeto
+2. Crie uma Branch para sua Feature (`git checkout -b feature/AmazingFeature`)
+3. Faça o Commit de suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Faça o Push para a Branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request 

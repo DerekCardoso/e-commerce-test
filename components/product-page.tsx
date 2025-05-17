@@ -39,19 +39,39 @@ interface AddressData {
 }
 
 // Dados do produto
+const productImages = {
+  Azul: [
+    "/azul.png",
+    "/azul2.png",
+    "/azul3.png",
+    "/azul4.png",
+  ],
+  Preto: [
+    "/preta.png",
+    "/preta.png",
+    "/preta.png",
+    "/preta.png",
+  ],
+  Branco: [
+    "/branca.png",
+    "/branca.png",
+    "/branca.png",
+    "/branca.png",
+  ],
+}
+
 const productData: ProductData = {
   id: "1",
-  name: "Camiseta Premium Algodão Pima",
+  name: "Camiseta Premium Algodão",
   price: 129.9,
   description:
-    "Camiseta confeccionada em algodão Pima de alta qualidade, proporcionando conforto excepcional e durabilidade. Ideal para o dia a dia, com acabamento premium e design atemporal.",
-  images: [
-    "/placeholder.svg?height=600&width=600",
-    "/placeholder.svg?height=600&width=600&text=Imagem+2",
-    "/placeholder.svg?height=600&width=600&text=Imagem+3",
-    "/placeholder.svg?height=600&width=600&text=Imagem+4",
-  ],
+    "Camiseta confeccionada em algodão de alta qualidade, proporcionando conforto excepcional e durabilidade. Ideal para o dia a dia, com acabamento premium e design atemporal.",
+  images: productImages.Azul, // Imagem inicial
   variants: [
+    {
+      color: "Azul",
+      sizes: ["P", "M", "G"],
+    },
     {
       color: "Preto",
       sizes: ["P", "M", "G", "GG"],
@@ -59,10 +79,6 @@ const productData: ProductData = {
     {
       color: "Branco",
       sizes: ["P", "M", "G", "GG"],
-    },
-    {
-      color: "Azul",
-      sizes: ["P", "M", "G"],
     },
   ],
 }
@@ -282,7 +298,7 @@ export default function ProductPage() {
   // Função para selecionar cor
   const handleColorSelect = (color: string) => {
     setSelectedColor(color)
-    // Resetar tamanho quando a cor muda
+    setMainImage(productImages[color as keyof typeof productImages][0])
     setSelectedSize("")
   }
 
