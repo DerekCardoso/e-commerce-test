@@ -9,6 +9,7 @@ Projeto de e-commerce desenvolvido com React, Next.js e TypeScript.
 - TypeScript
 - Tailwind CSS
 - Shadcn/ui
+- Axios
 
 ## 📋 Pré-requisitos
 
