@@ -5,9 +5,33 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/hooks/use-cart"
 import { Separator } from "@/components/ui/separator"
+import { sendCheckout } from "@/services/api"
 
 export default function CartDrawer() {
-  const { cartItems, removeFromCart, updateQuantity, totalPrice } = useCart()
+  const { cartItems, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart()
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) {
+      alert("Seu carrinho está vazio!");
+      return;
+    }
+
+    try {
+      const payload = cartItems.map(item => ({
+        values: [item.color, item.size],
+        quantity: item.quantity,
+        product_id: parseInt(item.id),
+        variant_id: parseInt(item.id), // Assumindo que o variant_id é o mesmo que o product_id
+      }));
+
+      await sendCheckout(payload);
+      alert("Checkout realizado com sucesso!");
+      clearCart();
+    } catch (err) {
+      alert("Erro no checkout.");
+      console.error(err);
+    }
+  };
 
   if (cartItems.length === 0) {
     return (
@@ -97,7 +121,12 @@ export default function CartDrawer() {
           <span className="text-base font-medium">R$ {totalPrice.toFixed(2).replace(".", ",")}</span>
         </div>
 
-        <Button className="mt-4 w-full bg-rose-600 hover:bg-rose-700">Finalizar Compra</Button>
+        <Button 
+          className="mt-4 w-full bg-rose-600 hover:bg-rose-700"
+          onClick={handleCheckout}
+        >
+          Finalizar Compra
+        </Button>
       </div>
     </div>
   )

@@ -1,319 +1,188 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { Check, Truck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useCart } from "@/hooks/use-cart";
 
-import { useEffect, useState } from "react"
-import Image from "next/image"
-import { Check, Truck } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
+import { getProduct, sendCheckout } from "@/services/api";
 
-// Importe o hook useCart no topo do arquivo
-import { useCart } from "@/hooks/use-cart"
-
-// Tipos
+// Tipagem de dados
 interface ProductVariant {
-  color: string
-  sizes: string[]
+  id: number;
+  product_id: number;
+  values: string[];
+  price: string;
+  inventory_quantity: number;
+  image_url: string;
 }
 
 interface ProductData {
-  id: string
-  name: string
-  price: number
-  description: string
-  images: string[]
-  variants: ProductVariant[]
+  id: number;
+  title: string;
+  options: string[];
+  values: string[][];
+  variants: ProductVariant[];
+  image_url: string;
+  images: { id: number; src: string }[];
 }
 
 interface AddressData {
-  cep: string
-  logradouro: string
-  complemento: string
-  bairro: string
-  localidade: string
-  uf: string
+  cep: string;
+  logradouro: string;
+  complemento: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
 }
 
-// Dados do produto
-const productImages = {
-  Azul: [
-    "/azul.png",
-    "/azul2.png",
-    "/azul3.png",
-    "/azul4.png",
-  ],
-  Preto: [
-    "/preta.png",
-    "/preta.png",
-    "/preta.png",
-    "/preta.png",
-  ],
-  Branco: [
-    "/branca.png",
-    "/branca.png",
-    "/branca.png",
-    "/branca.png",
-  ],
-}
-
-const productData: ProductData = {
-  id: "1",
-  name: "Camiseta Premium Algodão",
-  price: 129.9,
-  description:
-    "Camiseta confeccionada em algodão de alta qualidade, proporcionando conforto excepcional e durabilidade. Ideal para o dia a dia, com acabamento premium e design atemporal.",
-  images: productImages.Azul, // Imagem inicial
-  variants: [
-    {
-      color: "Azul",
-      sizes: ["P", "M", "G"],
-    },
-    {
-      color: "Preto",
-      sizes: ["P", "M", "G", "GG"],
-    },
-    {
-      color: "Branco",
-      sizes: ["P", "M", "G", "GG"],
-    },
-  ],
-}
+// ------------------------------------------------------
 
 export default function ProductPage() {
-  // Estados
-  const [mainImage, setMainImage] = useState<string>(productData.images[0])
-  const [selectedColor, setSelectedColor] = useState<string>("")
-  const [selectedSize, setSelectedSize] = useState<string>("")
-  const [cep, setCep] = useState<string>("")
-  const [address, setAddress] = useState<AddressData | null>(null)
-  const [isLoadingCep, setIsLoadingCep] = useState<boolean>(false)
-  const [cepError, setCepError] = useState<string>("")
+  const [product, setProduct] = useState<ProductData | null>(null);
+  const [mainImage, setMainImage] = useState<string>("");
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
+  const [variant, setVariant] = useState<ProductVariant | null>(null);
 
-  // Dentro do componente ProductPage, adicione:
-  const { addToCart } = useCart()
+  const { addToCart } = useCart();
 
-  // Efeito para carregar dados salvos do localStorage
+  // Estado do CEP
+  const [cep, setCep] = useState<string>("");
+  const [address, setAddress] = useState<AddressData | null>(null);
+  const [isLoadingCep, setIsLoadingCep] = useState<boolean>(false);
+  const [cepError, setCepError] = useState<string>("");
+
+  // ------------------------------------------------------
+
   useEffect(() => {
-    const savedData = localStorage.getItem("productSelections")
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData)
-        const timestamp = parsedData.timestamp || 0
-        const now = new Date().getTime()
+    const loadProduct = async () => {
+      const data = await getProduct();
+      setProduct(data);
+      setMainImage(data.image_url);
+      setSelectedValues(new Array(data.options.length).fill(""));
+    };
+    loadProduct();
+  }, []);
 
-        // Verificar se os dados têm menos de 15 minutos (900000 ms)
-        if (now - timestamp < 900000) {
-          setMainImage(parsedData.mainImage || productData.images[0])
-          setSelectedColor(parsedData.selectedColor || "")
-          setSelectedSize(parsedData.selectedSize || "")
-          setCep(parsedData.cep || "")
-          setAddress(parsedData.address || null)
-        } else {
-          // Limpar dados expirados
-          localStorage.removeItem("productSelections")
-        }
-      } catch (e) {
-        console.error("Erro ao carregar dados salvos:", e)
-      }
+  const handleSelect = (index: number, value: string) => {
+    const updated = [...selectedValues];
+    updated[index] = value;
+    setSelectedValues(updated);
+
+    const matchedVariant = product?.variants.find((v) =>
+      v.values.every((val, i) => val === updated[i])
+    );
+
+    setVariant(matchedVariant || null);
+    if (matchedVariant?.image_url) {
+      setMainImage(matchedVariant.image_url);
     }
-  }, [])
+  };
 
-  // Efeito para salvar dados no localStorage
-  useEffect(() => {
-    const dataToSave = {
-      mainImage,
-      selectedColor,
-      selectedSize,
-      cep,
-      address,
-      timestamp: new Date().getTime(),
+  const handleCheckout = async () => {
+    if (!variant) {
+      alert("Selecione uma combinação válida!");
+      return;
     }
-
-    localStorage.setItem("productSelections", JSON.stringify(dataToSave))
-  }, [mainImage, selectedColor, selectedSize, cep, address])
-
-  // Adicione um novo useEffect para atualizar o timestamp quando o usuário interage com a página
-  useEffect(() => {
-    // Função para atualizar o timestamp das seleções do produto
-    const updateProductTimestamp = () => {
-      const savedData = localStorage.getItem("productSelections")
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData)
-          parsedData.timestamp = new Date().getTime()
-          localStorage.setItem("productSelections", JSON.stringify(parsedData))
-        } catch (e) {
-          console.error("Erro ao atualizar timestamp:", e)
-        }
-      }
-    }
-
-    // Adicionar event listeners para detectar interações do usuário
-    window.addEventListener("click", updateProductTimestamp)
-    window.addEventListener("keydown", updateProductTimestamp)
-    window.addEventListener("touchstart", updateProductTimestamp)
-
-    // Verificar expiração periodicamente (a cada minuto)
-    const checkExpiration = () => {
-      const savedData = localStorage.getItem("productSelections")
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData)
-          const timestamp = parsedData.timestamp || 0
-          const now = new Date().getTime()
-
-          // Se passaram mais de 15 minutos (900000 ms)
-          if (now - timestamp > 900000) {
-            localStorage.removeItem("productSelections")
-          }
-        } catch (e) {
-          console.error("Erro ao verificar expiração:", e)
-        }
-      }
-    }
-
-    const expirationInterval = setInterval(checkExpiration, 60000)
-
-    return () => {
-      // Limpar event listeners e interval
-      window.removeEventListener("click", updateProductTimestamp)
-      window.removeEventListener("keydown", updateProductTimestamp)
-      window.removeEventListener("touchstart", updateProductTimestamp)
-      clearInterval(expirationInterval)
-    }
-  }, [])
-
-  // Função para formatar CEP
-  const formatCep = (value: string): string => {
-    // Remove todos os caracteres não numéricos
-    const numericValue = value.replace(/\D/g, "")
-
-    // Limita a 8 dígitos
-    const truncatedValue = numericValue.slice(0, 8)
-
-    // Adiciona o hífen após o 5º dígito se houver mais de 5 dígitos
-    if (truncatedValue.length > 5) {
-      return `${truncatedValue.slice(0, 5)}-${truncatedValue.slice(5)}`
-    }
-
-    return truncatedValue
-  }
-
-  // Função para validar CEP
-  const isValidCep = (cep: string): boolean => {
-    // Remove todos os caracteres não numéricos
-    const numericCep = cep.replace(/\D/g, "")
-    // Verifica se tem exatamente 8 dígitos
-    return numericCep.length === 8
-  }
-
-  // Função para consultar CEP na API ViaCEP
-  const fetchAddressByCep = async (cepToFetch: string = cep) => {
-    // Limpa mensagens de erro anteriores
-    setCepError("")
-
-    // Valida o CEP antes de fazer a consulta
-    if (!isValidCep(cepToFetch)) {
-      setCepError("CEP inválido. Digite os 8 dígitos do CEP.")
-      setAddress(null)
-      return
-    }
-
-    // Inicia o carregamento
-    setIsLoadingCep(true)
 
     try {
-      // Remove caracteres não numéricos para a consulta
-      const cleanCep = cepToFetch.replace(/\D/g, "")
+      const payload = [
+        {
+          values: variant.values,
+          quantity: 1,
+          product_id: variant.product_id,
+          variant_id: variant.id,
+        },
+      ];
+      await sendCheckout(payload); //não entendi o porque está sinalizando erro
+      alert("Checkout realizado com sucesso!");
+    } catch (err) {
+      alert("Erro no checkout.");
+      console.error(err);
+    }
+  };
 
-      // Faz a requisição para a API
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+  // ------------------------------------------------------
+  // Funções de CEP
+  const formatCep = (value: string): string => {
+    const numericValue = value.replace(/\D/g, "");
+    const truncated = numericValue.slice(0, 8);
+    return truncated.length > 5
+      ? `${truncated.slice(0, 5)}-${truncated.slice(5)}`
+      : truncated;
+  };
 
-      if (!response.ok) {
-        throw new Error(`Erro na requisição: ${response.status}`)
-      }
+  const isValidCep = (cep: string) => {
+    const numericCep = cep.replace(/\D/g, "");
+    return numericCep.length === 8;
+  };
 
-      const data = await response.json()
+  const fetchAddressByCep = async (cepToFetch: string = cep) => {
+    setCepError("");
+    if (!isValidCep(cepToFetch)) {
+      setCepError("CEP inválido.");
+      setAddress(null);
+      return;
+    }
+    setIsLoadingCep(true);
+    try {
+      const cleanCep = cepToFetch.replace(/\D/g, "");
+      const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await res.json();
 
-      // Verifica se a API retornou erro
       if (data.erro) {
-        setCepError("CEP não encontrado")
-        setAddress(null)
-        return
+        setCepError("CEP não encontrado.");
+        setAddress(null);
+        return;
       }
 
-      // Atualiza o endereço com os dados retornados
-      setAddress(data)
-      setCepError("")
-    } catch (error) {
-      console.error("Erro ao consultar CEP:", error)
-      setCepError("Erro ao consultar o CEP. Tente novamente.")
-      setAddress(null)
+      setAddress(data);
+      setCepError("");
+    } catch (err) {
+      console.error(err);
+      setCepError("Erro ao buscar CEP.");
+      setAddress(null);
     } finally {
-      // Finaliza o carregamento
-      setIsLoadingCep(false)
+      setIsLoadingCep(false);
     }
-  }
+  };
 
-  // Função para lidar com mudança de CEP
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Obtém o valor atual do input
-    const inputValue = e.target.value
+    const input = e.target.value;
+    const formatted = formatCep(input);
+    setCep(formatted);
 
-    // Formata o CEP
-    const formattedCep = formatCep(inputValue)
+    if (cepError && formatted.length < 9) setCepError("");
 
-    // Atualiza o estado do CEP
-    setCep(formattedCep)
-
-    // Limpa mensagens de erro enquanto o usuário está digitando
-    if (cepError && formattedCep.length < 9) {
-      setCepError("")
+    if (isValidCep(formatted)) {
+      setTimeout(() => fetchAddressByCep(formatted), 100);
+    } else if (formatted.length === 9) {
+      setCepError("CEP inválido.");
+    } else {
+      setAddress(null);
     }
+  };
 
-    // Se o CEP estiver completo (com ou sem hífen), consulta automaticamente
-    if (isValidCep(formattedCep)) {
-      // Pequeno timeout para garantir que o estado foi atualizado
-      setTimeout(() => {
-        fetchAddressByCep(formattedCep)
-      }, 100)
-    } else if (formattedCep.length === 9) {
-      // Se tem 9 caracteres (com hífen) mas não é válido
-      setCepError("CEP inválido. Digite os 8 dígitos do CEP.")
-    } else if (formattedCep.length > 0) {
-      // Se está digitando, limpa o endereço
-      setAddress(null)
-    }
-  }
+  const handleSearchClick = () => fetchAddressByCep();
 
-  // Função para lidar com o clique no botão de busca
-  const handleSearchClick = () => {
-    fetchAddressByCep()
-  }
+  // ------------------------------------------------------
 
-  // Função para selecionar cor
-  const handleColorSelect = (color: string) => {
-    setSelectedColor(color)
-    setMainImage(productImages[color as keyof typeof productImages][0])
-    setSelectedSize("")
-  }
-
-  // Obter tamanhos disponíveis para a cor selecionada
-  const availableSizes = selectedColor ? productData.variants.find((v) => v.color === selectedColor)?.sizes || [] : []
+  if (!product) return <p>Carregando...</p>;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Seção de imagens */}
+        {/* Imagem */}
         <div className="flex flex-col gap-4">
           <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-white">
             <Image
-              src={mainImage || "/placeholder.svg"}
-              alt={productData.name}
+              src={mainImage}
+              alt={product.title}
               fill
               className="object-contain"
               priority
@@ -321,67 +190,69 @@ export default function ProductPage() {
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {productData.images.map((img, index) => (
+            {product.images.map((img) => (
               <button
-                key={index}
-                className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border ${mainImage === img ? "ring-2 ring-rose-500" : ""}`}
-                onClick={() => setMainImage(img)}
+                key={img.id}
+                onClick={() => setMainImage(img.src)}
+                className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border ${
+                  mainImage === img.src ? "ring-2 ring-rose-500" : ""
+                }`}
               >
-                <Image src={img || "/placeholder.svg"} alt={`Miniatura ${index + 1}`} fill className="object-cover" />
+                <Image src={img.src} alt={`Imagem`} fill className="object-cover" />
               </button>
             ))}
           </div>
         </div>
 
-        {/* Informações do produto */}
+        {/* Info */}
         <div className="flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-bold md:text-3xl">{productData.name}</h1>
-            <p className="mt-2 text-3xl font-bold text-rose-600">R$ {productData.price.toFixed(2).replace(".", ",")}</p>
-            <p className="mt-4 text-gray-600">{productData.description}</p>
+            <h1 className="text-2xl font-bold md:text-3xl">{product.title}</h1>
+            <p className="mt-2 text-3xl font-bold text-rose-600">
+              R$ {variant?.price || product.variants[0]?.price}
+            </p>
           </div>
 
           <Separator />
 
-          {/* Seletor de cor */}
-          <div>
-            <h2 className="mb-3 text-lg font-medium">Cor</h2>
-            <div className="flex flex-wrap gap-3">
-              {productData.variants.map((variant, index) => (
-                <button
-                  key={index}
-                  className={`rounded-md border px-4 py-2 transition-all ${
-                    selectedColor === variant.color
-                      ? "border-rose-500 bg-rose-50 text-rose-600"
-                      : "border-gray-300 hover:border-gray-400"
-                  }`}
-                  onClick={() => handleColorSelect(variant.color)}
-                >
-                  {variant.color}
-                </button>
-              ))}
+          {/* Seletores */}
+          {product.options.map((option, index) => (
+            <div key={option}>
+              <h2 className="mb-3 text-lg font-medium">{option}</h2>
+              <div className="flex flex-wrap gap-3">
+                {product.values[index].map((val) => (
+                  <button
+                    key={val}
+                    className={`rounded-md border px-4 py-2 transition-all ${
+                      selectedValues[index] === val
+                        ? "border-rose-500 bg-rose-50 text-rose-600"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                    onClick={() => handleSelect(index, val)}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ))}
 
-          {/* Seletor de tamanho */}
-          {selectedColor && (
-            <div>
-              <h2 className="mb-3 text-lg font-medium">Tamanho</h2>
-              <RadioGroup value={selectedSize} onValueChange={setSelectedSize}>
-                <div className="flex flex-wrap gap-3">
-                  {availableSizes.map((size) => (
-                    <div key={size}>
-                      <RadioGroupItem value={size} id={`size-${size}`} className="peer sr-only" />
-                      <Label
-                        htmlFor={`size-${size}`}
-                        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-gray-300 peer-data-[state=checked]:border-rose-500 peer-data-[state=checked]:bg-rose-50 peer-data-[state=checked]:text-rose-600"
-                      >
-                        {size}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </RadioGroup>
+          <Separator />
+
+          {/* Estoque */}
+          {selectedValues.every((v) => v) && (
+            <div className="mt-2">
+              {variant ? (
+                variant.inventory_quantity > 0 ? (
+                  <p className="text-green-600">
+                    Em estoque: {variant.inventory_quantity} unidades
+                  </p>
+                ) : (
+                  <p className="text-red-500">Produto sem estoque</p>
+                )
+              ) : (
+                <p className="text-gray-500">Variante não encontrada</p>
+              )}
             </div>
           )}
 
@@ -412,7 +283,11 @@ export default function ProductPage() {
                   </p>
                 )}
               </div>
-              <Button onClick={handleSearchClick} disabled={isLoadingCep || !isValidCep(cep)} className="shrink-0">
+              <Button
+                onClick={handleSearchClick}
+                disabled={isLoadingCep || !isValidCep(cep)}
+                className="shrink-0"
+              >
                 {isLoadingCep ? "Buscando..." : "Buscar"}
               </Button>
             </div>
@@ -449,29 +324,29 @@ export default function ProductPage() {
 
           <Separator />
 
-          {/* Botão de compra */}
+          {/* Checkout */}
           <Button
             size="lg"
             className="mt-2 bg-rose-600 hover:bg-rose-700"
-            disabled={!selectedColor || !selectedSize}
+            disabled={!variant || variant.inventory_quantity === 0}
             onClick={() => {
-              if (selectedColor && selectedSize) {
+              if (variant) {
                 addToCart({
-                  id: productData.id,
-                  name: productData.name,
-                  price: productData.price,
+                  id: product.id.toString(),
+                  name: product.title,
+                  price: parseFloat(variant.price),
                   image: mainImage,
-                  color: selectedColor,
-                  size: selectedSize,
+                  color: variant.values[0],
+                  size: variant.values[1] || "",
                   quantity: 1,
-                })
+                });
               }
             }}
           >
-            Adicionar ao carrinho
+            Adicionar ao Carrinho
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }
